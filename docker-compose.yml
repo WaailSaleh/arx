@@ -1,0 +1,23 @@
+services:
+  palworld-server:
+    # https://github.com/pocketpairjp/palserver
+    image: ghcr.io/pocketpairjp/palserver:latest
+
+    entrypoint: /pal/helper.sh
+
+    # https://tech.palworldgame.com/settings-and-operation/arguments
+    command:
+      - -port=8211
+      - -useperfthreads
+      - -NoAsyncLoadingThread
+      - -UseMultithreadForDS
+      - -servername="Blesse"
+      - -serverpassword="shonda"
+      - -publiclobby
+
+    ports:
+      - "8211:8211/udp"
+
+    volumes:
+      - ./helper.sh:/pal/helper.sh
+      - ./Saved:/pal/Package/Pal/Saved
