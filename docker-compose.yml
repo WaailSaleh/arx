@@ -1,0 +1,115 @@
+version: "3.8"
+
+services:
+  palworld:
+    image: thijsvanloef/palworld-server-docker:latest
+    container_name: palworld-server
+    restart: unless-stopped
+    stop_grace_period: 30s
+    networks:
+      - palnet
+    ports:
+      - "${PORT:-8211}:${PORT:-8211}/udp"
+      - "${QUERY_PORT:-27015}:${QUERY_PORT:-27015}/udp"
+      # NOTE: RCON port is intentionally NOT published to host for security.
+      # rcon-web-admin accesses it over the internal docker network.
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+      PORT: ${PORT:-8211}
+      QUERY_PORT: ${QUERY_PORT:-27015}
+      PLAYERS: ${PLAYERS:-16}
+      SERVER_PASSWORD: ${SERVER_PASSWORD}
+      MULTITHREADING: ${MULTITHREADING:-true}
+      RCON_ENABLED: ${RCON_ENABLED:-true}
+      RCON_PORT: ${RCON_PORT:-25575}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      REST_API_ENABLED: ${REST_API_ENABLED:-true}
+      COMMUNITY: ${COMMUNITY:-false}
+      SERVER_NAME: ${SERVER_NAME:-"Palworld Server"}
+      SERVER_DESCRIPTION: ${SERVER_DESCRIPTION:-"Managed via Docker"}
+      ALLOW_CONNECT_PLATFORM: ${ALLOW_CONNECT_PLATFORM:-Steam}
+      BACKUP_ENABLED: ${BACKUP_ENABLED:-true}
+      AUTO_UPDATE_ENABLED: ${AUTO_UPDATE_ENABLED:-false}
+      UPDATE_ON_BOOT: ${UPDATE_ON_BOOT:-true}
+    volumes:
+      - ./data/palworld:/palworld
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    restart: unless-stopped
+    networks:
+      - palnet
+    expose:
+      - "8080"
+    environment:
+      DOZZLE_LEVEL: info
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  admin-panel:
+    image: nginx:alpine
+    container_name: admin-panel
+    restart: unless-stopped
+    networks:
+      - palnet
+    expose:
+      - "80"
+    ports:
+      - "${RWA_HTTP_PORT:-4326}:80/tcp"
+    volumes:
+      - ./palworld-admin.html:/usr/share/nginx/html/index.html:ro
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    networks:
+      - palnet
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+    environment:
+      DOMAIN: ${DOMAIN}
+      EMAIL: ${EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - admin-panel
+      - dozzle
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    restart: unless-stopped
+    networks:
+      - palnet
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_SCHEDULE: ${WATCHTOWER_SCHEDULE:-0 0 4 * * *}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  palnet:
+    name: palnet
+    driver: bridge

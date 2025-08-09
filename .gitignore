@@ -1,0 +1,23 @@
+# Environment files
+.env
+.env.deploy
+
+# Docker data
+data/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp

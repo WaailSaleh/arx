@@ -1,0 +1,45 @@
+# Admin Panel - Main subdomain
+admin.{$DOMAIN} {
+    reverse_proxy admin-panel:80
+    
+    # Basic auth with bcrypt hash for password "palworld123"
+    basic_auth {
+        admin $2a$14$k8CoM2p7c38JbEZkDil90.1rdB3tFs16l1Tedz.WejTWvclHCnW9y
+    }
+    
+    # Security headers
+    header {
+        # Enable HSTS
+        Strict-Transport-Security max-age=31536000;
+        # Prevent clickjacking
+        X-Frame-Options DENY
+        # Prevent MIME sniffing
+        X-Content-Type-Options nosniff
+        # XSS protection
+        X-XSS-Protection "1; mode=block"
+        # Referrer policy
+        Referrer-Policy no-referrer-when-downgrade
+    }
+    
+    # Enable automatic HTTPS
+    tls {$EMAIL}
+}
+
+
+
+# Logs subdomain  
+logs.{$DOMAIN} {
+    reverse_proxy dozzle:8080
+    tls {$EMAIL}
+}
+
+# HTTP redirect to HTTPS
+http://admin.{$DOMAIN} {
+    redir https://admin.{$DOMAIN}{uri}
+}
+
+
+
+http://logs.{$DOMAIN} {
+    redir https://logs.{$DOMAIN}{uri}
+}
