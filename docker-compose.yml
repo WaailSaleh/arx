@@ -1,23 +1,46 @@
 services:
-  palworld-server:
-    # https://github.com/pocketpairjp/palserver
-    image: ghcr.io/pocketpairjp/palserver:latest
-
-    entrypoint: /pal/helper.sh
-
-    # https://tech.palworldgame.com/settings-and-operation/arguments
-    command:
-      - -port=8211
-      - -useperfthreads
-      - -NoAsyncLoadingThread
-      - -UseMultithreadForDS
-      - -servername="Blesse"
-      - -serverpassword="shonda"
-      - -publiclobby
-
+  palworld:
+    image: thijsvanloef/palworld-server-docker:latest
+    container_name: palworld
+    restart: unless-stopped
+    stop_grace_period: 30s
     ports:
       - "8211:8211/udp"
-
+      - "27015:27015/udp"
+      # Optional RCON (enable in env below)
+      - "25575:25575/tcp"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+      - PORT=8211
+      - PLAYERS=16
+      # SERVER_PASSWORD not set (managed separately)
+      - ADMIN_PASSWORD=adminadmin
+      - COMMUNITY=true
+      - SERVER_NAME=Blesse
+      - SERVER_DESCRIPTION=Palworld Dedicated Server
+      - MULTITHREADING=true
+      - RCON_ENABLED=true
+      - RCON_PORT=25575
+      - ALLOW_CONNECT_PLATFORM=Steam
     volumes:
-      - ./helper.sh:/pal/helper.sh
-      - ./Saved:/pal/Package/Pal/Saved
+      - palworld_data:/palworld
+
+  uploader:
+    build:
+      context: ./uploader
+    container_name: palworld-uploader
+    restart: unless-stopped
+    environment:
+      - SAVES_DIR=/palworld/Pal/Saved
+      - DOCKER_LABEL_SERVICE=palworld
+    volumes:
+      - palworld_data:/palworld
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8080:8080"
+
+volumes:
+  palworld_data:
+    driver: local
