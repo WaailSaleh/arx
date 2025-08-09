@@ -20,4 +20,24 @@ services:
 
     volumes:
       - ./helper.sh:/pal/helper.sh
-      - ./Saved:/pal/Package/Pal/Saved
+      - saved:/pal/Package/Pal/Saved
+
+    labels:
+      - com.docker.compose.service=palworld-server
+
+  uploader:
+    build:
+      context: ./uploader
+    environment:
+      - SAVES_DIR=/data
+      - DOCKER_LABEL_SERVICE=palworld-server
+    volumes:
+      - saved:/data
+      # Optional: to allow container to restart palworld directly
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8080:8080"
+
+volumes:
+  saved:
+    driver: local
