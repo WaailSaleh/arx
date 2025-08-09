@@ -15,7 +15,7 @@ services:
       - TZ=UTC
       - PORT=8211
       - PLAYERS=16
-      - SERVER_PASSWORD=shonda
+      - SERVER_PASSWORD=auto
       - ADMIN_PASSWORD=adminadmin
       - COMMUNITY=true
       - SERVER_NAME=Blesse
