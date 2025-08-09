@@ -16,7 +16,7 @@ This repository provides a ready-to-deploy stack for a Palworld dedicated server
    docker compose up -d
    ```
 3. Access:
-   - RCON UI: `http://<host>:4326`
+   - RCON UI: `http://<host>:4326` (login with `RWA_USERNAME`/`RWA_PASSWORD`), then add server with host `palworld`, port `${RCON_PORT}` (default 25575), password `${ADMIN_PASSWORD}`
    - Dozzle: `http://<host>:9999`
 
 ## Deploy via GitHub Actions to Hetzner
@@ -60,8 +60,8 @@ Push to `main` to deploy. The workflow will:
 
 ## Security notes
 
-- RCON is NOT exposed to the internet; the web UI reaches it over the internal Docker network. Keep `ADMIN_PASSWORD` and `RWA_PASSWORD` strong.
-- Expose only the ports you need. Consider a firewall (Hetzner Cloud firewall) allowing `UDP ${PORT}` and `UDP ${QUERY_PORT}`, plus `TCP` for the web UIs you use.
+- RCON web UI and Dozzle are exposed directly on their TCP ports. Use strong credentials and restrict access with your cloud firewall if possible.
+- Expose only the ports you need. Consider a firewall (Hetzner Cloud firewall) allowing `UDP ${PORT}` and `UDP ${QUERY_PORT}`, plus `TCP` for web UIs you use.
 
 ## Data persistence
 

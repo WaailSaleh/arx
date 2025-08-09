@@ -65,14 +65,14 @@ jobs:
           PORT=${{ secrets.PORT || '8211' }}
           QUERY_PORT=${{ secrets.QUERY_PORT || '27015' }}
           PLAYERS=${{ secrets.PLAYERS || '16' }}
-          SERVER_NAME=${{ secrets.SERVER_NAME || 'Palworld Server' }}
-          SERVER_DESCRIPTION=${{ secrets.SERVER_DESCRIPTION || 'Managed via Docker' }}
+          SERVER_NAME=${{ secrets.SERVER_NAME || 'Afterstory' }}
+          SERVER_DESCRIPTION=${{ secrets.SERVER_DESCRIPTION || 'Palworld server named Afterstory' }}
           ALLOW_CONNECT_PLATFORM=${{ secrets.ALLOW_CONNECT_PLATFORM || 'Steam' }}
           MULTITHREADING=${{ secrets.MULTITHREADING || 'true' }}
           COMMUNITY=${{ secrets.COMMUNITY || 'false' }}
           RCON_ENABLED=${{ secrets.RCON_ENABLED || 'true' }}
           RCON_PORT=${{ secrets.RCON_PORT || '25575' }}
-          SERVER_PASSWORD=${{ secrets.SERVER_PASSWORD }}
+          SERVER_PASSWORD=${{ secrets.SERVER_PASSWORD || '123' }}
           ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
           RWA_HTTP_PORT=${{ secrets.RWA_HTTP_PORT || '4326' }}
           RWA_USERNAME=${{ secrets.RWA_USERNAME || 'admin' }}
