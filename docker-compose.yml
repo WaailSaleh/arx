@@ -12,7 +12,10 @@ services:
       - "${PORT:-8211}:${PORT:-8211}/udp"
       - "${QUERY_PORT:-27015}:${QUERY_PORT:-27015}/udp"
       # NOTE: RCON port is intentionally NOT published to host for security.
-      # rcon-web-admin accesses it over the internal docker network.
+      # REST API port is exposed only on internal docker network for security.
+      # Caddy proxy provides external access with authentication.
+    expose:
+      - "8212"
     environment:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
@@ -22,17 +25,19 @@ services:
       PLAYERS: ${PLAYERS:-16}
       SERVER_PASSWORD: ${SERVER_PASSWORD}
       MULTITHREADING: ${MULTITHREADING:-true}
-      RCON_ENABLED: ${RCON_ENABLED:-true}
+      RCON_ENABLED: ${RCON_ENABLED:-false}
       RCON_PORT: ${RCON_PORT:-25575}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       REST_API_ENABLED: ${REST_API_ENABLED:-true}
+      REST_API_PORT: ${REST_API_PORT:-8212}
       COMMUNITY: ${COMMUNITY:-false}
       SERVER_NAME: ${SERVER_NAME:-"Palworld Server"}
       SERVER_DESCRIPTION: ${SERVER_DESCRIPTION:-"Managed via Docker"}
-      ALLOW_CONNECT_PLATFORM: ${ALLOW_CONNECT_PLATFORM:-Steam}
       BACKUP_ENABLED: ${BACKUP_ENABLED:-true}
       AUTO_UPDATE_ENABLED: ${AUTO_UPDATE_ENABLED:-false}
       UPDATE_ON_BOOT: ${UPDATE_ON_BOOT:-true}
+      CROSSPLAY_PLATFORMS: "(Steam,Xbox,PS5,Mac)"
+
     volumes:
       - ./data/palworld:/palworld
     labels:
@@ -59,14 +64,39 @@ services:
     restart: unless-stopped
     networks:
       - palnet
-    expose:
-      - "80"
     ports:
-      - "${RWA_HTTP_PORT:-4326}:80/tcp"
+      - "${RWA_HTTP_PORT:-4326}:80"
     volumes:
-      - ./palworld-admin.html:/usr/share/nginx/html/index.html:ro
+      - ./admin-panel.html:/usr/share/nginx/html/index.html:ro
+      - ./nginx-admin.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - palworld
+      - save-api
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
+
+  save-api:
+    image: node:18-alpine
+    container_name: save-api
+    restart: unless-stopped
+    networks:
+      - palnet
+    ports:
+      - "8213:8213"
+    working_dir: /app
+    volumes:
+      - ./package.json:/app/package.json:ro
+      - ./save-api.js:/app/save-api.js:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./data/palworld:/palworld-data
+      - /opt/palworld:/opt/palworld:ro
+    command: sh -c "apk add --no-cache docker-cli docker-compose && npm install && npm start"
+    depends_on:
+      - palworld
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+
 
   caddy:
     image: caddy:2-alpine
@@ -85,7 +115,6 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - admin-panel
       - dozzle
     labels:
       - "com.centurylinklabs.watchtower.enable=true"

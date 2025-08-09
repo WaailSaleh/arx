@@ -1,10 +1,20 @@
-# Admin Panel - Main subdomain
+# Admin subdomain with API proxy and authentication
 admin.{$DOMAIN} {
+    # Proxy REST API calls to Palworld server with authentication
+    handle /api/* {
+        # Rewrite /api/* to /v1/api/* and add auth header for Palworld API (admin:auto)
+        uri path_regexp ^/api/(.*)$ /v1/api/${1}
+        reverse_proxy palworld-server:8212 {
+            header_up Authorization "Basic YWRtaW46YXV0bw=="
+        }
+    }
+    
+    # Serve admin panel
     reverse_proxy admin-panel:80
     
-    # Basic auth with bcrypt hash for password "palworld123"
+    # Basic auth with bcrypt hash for password "8"
     basic_auth {
-        admin $2a$14$k8CoM2p7c38JbEZkDil90.1rdB3tFs16l1Tedz.WejTWvclHCnW9y
+        admin $2a$14$xva4V3WL3wS3euh2eFcDg.8K8roFPRY/NHpJdeufHN78E6otSXm7i
     }
     
     # Security headers
@@ -25,8 +35,6 @@ admin.{$DOMAIN} {
     tls {$EMAIL}
 }
 
-
-
 # Logs subdomain  
 logs.{$DOMAIN} {
     reverse_proxy dozzle:8080
@@ -37,8 +45,6 @@ logs.{$DOMAIN} {
 http://admin.{$DOMAIN} {
     redir https://admin.{$DOMAIN}{uri}
 }
-
-
 
 http://logs.{$DOMAIN} {
     redir https://logs.{$DOMAIN}{uri}
