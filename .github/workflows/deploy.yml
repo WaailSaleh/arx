@@ -1,0 +1,105 @@
+name: Deploy Palworld Stack
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Hetzner
+    runs-on: ubuntu-latest
+
+    env:
+      HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
+      HETZNER_USER: ${{ secrets.HETZNER_USER }}
+      HETZNER_DIR: ${{ secrets.HETZNER_DIR }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Create remote directory
+        run: |
+          ssh -o StrictHostKeyChecking=no ${HETZNER_USER}@${HETZNER_HOST} "mkdir -p ${HETZNER_DIR}"
+
+      - name: Sync repository to server
+        run: |
+          rsync -az --delete \
+            -e "ssh -o StrictHostKeyChecking=no" \
+            ./ ${HETZNER_USER}@${HETZNER_HOST}:${HETZNER_DIR}/
+
+      - name: Render .env on server from secrets and bootstrap Docker
+        run: |
+          ssh -o StrictHostKeyChecking=no ${HETZNER_USER}@${HETZNER_HOST} << 'EOF'
+          set -euo pipefail
+
+          # Ensure Docker is installed
+          if ! command -v docker >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y ca-certificates curl gnupg lsb-release
+            sudo install -m 0755 -d /etc/apt/keyrings
+            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+            echo \
+              "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+              $(lsb_release -cs) stable" | \
+              sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+            sudo apt-get update -y
+            sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+            sudo usermod -aG docker $USER || true
+          fi
+
+          cd ${HETZNER_DIR}
+
+          # Write .env from GitHub secrets; fall back to existing values where applicable
+          cat > .env << ENVEOF
+          COMPOSE_PROJECT_NAME=palworld
+          TZ=${{ secrets.TZ || 'UTC' }}
+          PUID=${{ secrets.PUID || '1000' }}
+          PGID=${{ secrets.PGID || '1000' }}
+          PORT=${{ secrets.PORT || '8211' }}
+          QUERY_PORT=${{ secrets.QUERY_PORT || '27015' }}
+          PLAYERS=${{ secrets.PLAYERS || '16' }}
+          SERVER_NAME=${{ secrets.SERVER_NAME || 'Palworld Server' }}
+          SERVER_DESCRIPTION=${{ secrets.SERVER_DESCRIPTION || 'Managed via Docker' }}
+          ALLOW_CONNECT_PLATFORM=${{ secrets.ALLOW_CONNECT_PLATFORM || 'Steam' }}
+          MULTITHREADING=${{ secrets.MULTITHREADING || 'true' }}
+          COMMUNITY=${{ secrets.COMMUNITY || 'false' }}
+          RCON_ENABLED=${{ secrets.RCON_ENABLED || 'true' }}
+          RCON_PORT=${{ secrets.RCON_PORT || '25575' }}
+          SERVER_PASSWORD=${{ secrets.SERVER_PASSWORD }}
+          ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+          RWA_HTTP_PORT=${{ secrets.RWA_HTTP_PORT || '4326' }}
+          RWA_USERNAME=${{ secrets.RWA_USERNAME || 'admin' }}
+          RWA_PASSWORD=${{ secrets.RWA_PASSWORD }}
+          DOZZLE_PORT=${{ secrets.DOZZLE_PORT || '9999' }}
+          WATCHTOWER_SCHEDULE=${{ secrets.WATCHTOWER_SCHEDULE || '0 0 4 * * *' }}
+          ENVEOF
+
+          # Make data directory and set permissive ownership for container user
+          mkdir -p ${HETZNER_DIR}/data/palworld
+          sudo chown -R 1000:1000 ${HETZNER_DIR}/data || true
+
+          # Determine docker compose command
+          if docker compose version >/dev/null 2>&1; then
+            COMPOSE="docker compose"
+          elif command -v docker-compose >/dev/null 2>&1; then
+            COMPOSE="docker-compose"
+          else
+            echo "docker compose not found" >&2; exit 1
+          fi
+
+          # Pull and start stack
+          $COMPOSE pull
+          $COMPOSE up -d --remove-orphans
+          EOF
+
+      - name: Print service endpoints
+        run: |
+          echo "RCON Web UI: http://${{ secrets.HETZNER_HOST }}:${{ secrets.RWA_HTTP_PORT || 4326 }}"
+          echo "Dozzle Logs: http://${{ secrets.HETZNER_HOST }}:${{ secrets.DOZZLE_PORT || 9999 }}"

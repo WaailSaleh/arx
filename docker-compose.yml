@@ -1,0 +1,90 @@
+version: "3.8"
+
+services:
+  palworld:
+    image: thijsvanloef/palworld-server-docker:latest
+    container_name: palworld-server
+    restart: unless-stopped
+    stop_grace_period: 30s
+    networks:
+      - palnet
+    ports:
+      - "${PORT:-8211}:${PORT:-8211}/udp"
+      - "${QUERY_PORT:-27015}:${QUERY_PORT:-27015}/udp"
+      # NOTE: RCON port is intentionally NOT published to host for security.
+      # rcon-web-admin accesses it over the internal docker network.
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+      PORT: ${PORT:-8211}
+      QUERY_PORT: ${QUERY_PORT:-27015}
+      PLAYERS: ${PLAYERS:-16}
+      SERVER_PASSWORD: ${SERVER_PASSWORD}
+      MULTITHREADING: ${MULTITHREADING:-true}
+      RCON_ENABLED: ${RCON_ENABLED:-true}
+      RCON_PORT: ${RCON_PORT:-25575}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      COMMUNITY: ${COMMUNITY:-false}
+      SERVER_NAME: ${SERVER_NAME:-"Palworld Server"}
+      SERVER_DESCRIPTION: ${SERVER_DESCRIPTION:-"Managed via Docker"}
+      ALLOW_CONNECT_PLATFORM: ${ALLOW_CONNECT_PLATFORM:-Steam}
+    volumes:
+      - ./data/palworld:/palworld
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  rcon-web-admin:
+    image: ghcr.io/gorcon/rcon-web-admin:latest
+    container_name: rcon-web-admin
+    restart: unless-stopped
+    networks:
+      - palnet
+    # Expose web UI
+    ports:
+      - "${RWA_HTTP_PORT:-4326}:4326/tcp"
+    environment:
+      RWA_USERNAME: ${RWA_USERNAME:-admin}
+      RWA_PASSWORD: ${RWA_PASSWORD}
+      # Optional: preconfigure default server (uncomment and adjust if desired)
+      # SERVERS__0__NAME: ${SERVER_NAME:-Palworld}
+      # SERVERS__0__HOST: palworld
+      # SERVERS__0__PORT: ${RCON_PORT:-25575}
+      # SERVERS__0__PASSWORD: ${ADMIN_PASSWORD}
+    depends_on:
+      - palworld
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    restart: unless-stopped
+    networks:
+      - palnet
+    ports:
+      - "${DOZZLE_PORT:-9999}:8080/tcp"
+    environment:
+      DOZZLE_LEVEL: info
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    restart: unless-stopped
+    networks:
+      - palnet
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_SCHEDULE: ${WATCHTOWER_SCHEDULE:-0 0 4 * * *}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+networks:
+  palnet:
+    name: palnet
+    driver: bridge
