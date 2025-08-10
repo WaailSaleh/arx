@@ -1,4 +1,3 @@
 #!/bin/sh
-set -e
-mkdir -p /pal/Package/Pal/Saved/SaveGames/0
+sudo chown -R user:usergroup /pal/Package/Pal/Saved
 exec /bin/sh /pal/Package/PalServer.sh "$@"
